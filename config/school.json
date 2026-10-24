@@ -1,0 +1,12 @@
+{
+  "name": "Al-Rizwan English School",
+  "address": "Chaitaniya Nagar Road, Nanded",
+  "logo_path": "assets/logo.jpg",
+  "branches": [
+    {
+      "id": "main",
+      "name": "Al-Rizwan English School",
+      "address": "Chaitaniya Nagar Road, Nanded"
+    }
+  ]
+}

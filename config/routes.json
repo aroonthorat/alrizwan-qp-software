@@ -1,0 +1,47 @@
+{
+  "ocr_page": {
+    "primary": "gemini-3.8-flash",
+    "fallback": "claude-haiku-5.5",
+    "output": "plain_text"
+  },
+  "parse_fallback": {
+    "primary": "claude-haiku-5.5",
+    "fallback": "gemini-3.8-flash",
+    "output": "json"
+  },
+  "grammar_hi": {
+    "primary": "claude-haiku-5.5",
+    "fallback": "gemini-3.8-flash",
+    "output": "json"
+  },
+  "grammar_mr": {
+    "primary": "claude-haiku-5.5",
+    "fallback": "gemini-3.8-flash",
+    "output": "json"
+  },
+  "grammar_ur": {
+    "primary": "claude-haiku-5.5",
+    "fallback": "gemini-3.8-flash",
+    "output": "json"
+  },
+  "grammar_deep": {
+    "primary": "claude-sonnet-5.5",
+    "fallback": null,
+    "output": "json"
+  },
+  "diagram_tag": {
+    "primary": "gemini-3.8-flash",
+    "fallback": "claude-haiku-5.5",
+    "output": "json"
+  },
+  "answer_key": {
+    "primary": "claude-haiku-5.5",
+    "fallback": "gemini-3.8-flash",
+    "output": "json"
+  },
+  "translate": {
+    "primary": "claude-haiku-5.5",
+    "fallback": "claude-sonnet-5.5",
+    "output": "text"
+  }
+}

@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+data/qp.sqlite
+data/qp.sqlite-journal
+data/*.docx
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+target/
+.pytest_cache/
+
