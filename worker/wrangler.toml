@@ -1,0 +1,31 @@
+name = "alrizwan-worker"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ENVIRONMENT = "production"
+DEFAULT_MONTHLY_CAP_INR = "500.0"
+
+# Cloudflare D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "alrizwan_qp_db"
+database_id = "d1-alrizwan-qp-prod-id"
+
+# Cloudflare R2 Bucket binding
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "alrizwan-diagrams-docs"
+
+# Cloudflare Vectorize Index binding (bge-m3 1024 dims)
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "alrizwan-rag-index"
+
+# Cloudflare Workers AI binding for @cf/baai/bge-m3 embeddings
+[ai]
+binding = "AI"
+
+# Automated nightly backup cron trigger
+[triggers]
+crons = ["0 2 * * *"]

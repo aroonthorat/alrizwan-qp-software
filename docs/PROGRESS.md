@@ -122,7 +122,53 @@
 
 ---
 
-## Next Steps: Phase 6 (Photo OCR, Bilingual Papers & Auto-Tagging)
-1. Photo / handwriting OCR via Gemini 3.8 Flash vision.
-2. Bilingual paper generator (English $\rightleftarrows$ Urdu side-by-side or stacked).
-3. Diagram auto-tagging via Gemini 3.8 Flash vision.
+## Phase 6: Photo OCR, Bilingual Papers & Diagram Auto-Tagging (COMPLETED)
+
+### Completed Deliverables
+- [x] **Photo & Handwriting OCR (`server/ai_gateway.py` & `server/main.py`)**:
+  - `POST /api/ocr/upload` supporting photo uploads of handwritten or printed question sheets.
+  - Routed to Gemini 3.8 Flash multimodal vision with verbatim transcription prompts preserving numbering, brackets, and marks.
+  - Offline fallback returns structured sample test transcripts for offline development and testing.
+  - UI file upload button with camera icon and live scanning indicator in the question input header.
+- [x] **Bilingual Paper Generator & Word 2007 Export (`server/bilingual_service.py`)**:
+  - `POST /api/bilingual/translate` produces stacked English ⇄ Urdu question papers.
+  - Translates group headings, question stems, and MCQ options into authentic educational Urdu Nastaleeq vocabulary.
+  - `POST /api/export/bilingual` exports `Class <N> <Subject> - Bilingual Paper.docx` compatible with Word 2007.
+  - OpenXML complex scripts formatting: `<w:bidi/>`, `<w:rtl/>`, and `Jameel Noori Nastaleeq` font properties on right-aligned paragraphs and runs.
+  - Live A4 preview toggle (`Bilingual Active (اردو / En)`) dynamically rendering right-to-left Nastaleeq under question stems and in 2×2 option grids.
+- [x] **Diagram Auto-Tagging (`server/ai_gateway.py` & `specs/DIAGRAM-PIPELINE.md`)**:
+  - `POST /api/diagrams/auto-tag` extracts subject, chapter, and semantic tag arrays using Gemini 3.8 Flash vision.
+  - Offline heuristic tagger derives tags from file keywords and curriculum metadata.
+- [x] **Automated Tests**:
+  - Tests in `tests/test_phase6_bilingual_ocr.py` verifying OCR upload, bilingual translation, Word 2007 docx export, and diagram auto-tagging.
+
+---
+
+## Phase 7: Cloudflare D1, R2, Workers & Vectorize RAG (COMPLETED)
+
+### Completed Deliverables
+- [x] **Cloudflare Worker Backend (`worker/wrangler.toml` & `worker/src/index.js`)**:
+  - Implements `specs/STORAGE-AND-RAG.md` architecture where the school PC is not trusted with master data.
+  - **Cloudflare D1 SQLite**: Source of truth database holding `questions`, `diagrams`, `papers`, `paper_items`, `usage`, `dictionary`, `users`, `ai_log`, `ai_cache`.
+  - **Cloudflare R2**: Private bucket storage for diagram scans, school logos, and exported `.docx` copies.
+  - **Workers AI (`@cf/baai/bge-m3`) & Vectorize**:
+    - Generates 1024-dimension embeddings on question creation.
+    - `/api/bank/duplicate-check` warns on duplicate questions with similarity score $\ge 0.92$.
+    - `/api/bank/similar` finds chapter-diverse similar questions.
+    - `/api/diagrams/match` matches question text against diagram vectors.
+  - **Role-based Access Control**: Enforces `admin`, `teacher`, and `checker` permissions (teachers soft-archive questions; only admin hard-deletes).
+  - **Worker AI Gateway**: Routes tasks using Worker secrets, enforces monthly cap, and logs to D1 `ai_log`.
+  - **Automated Nightly Backups**: Cron trigger exports D1 dump and R2 manifest to R2 `backups/`.
+- [x] **Local Offline Queue & Client Adapter (`server/ai_client.py` & `server/storage_sync.py`)**:
+  - Local desktop runs with no secrets or API keys on the PC.
+  - `server/ai_client.py` routes to the Cloudflare Worker when online and falls back to local rule-based code when disconnected.
+  - `server/storage_sync.py` manages `data/offline-queue.sqlite` to queue question creations and paper edits locally, with one-click flush sync to Cloudflare D1.
+- [x] **Cloud & AI Console UI (`app/src/components/AdminStatsModal.jsx`)**:
+  - Top navbar AI Console button with coin badge.
+  - Monthly expenditure gauge and visual progress bar against configurable ₹500 cap.
+  - SHA-256 cache savings metric (`₹ saved`) and cache hit rate counter.
+  - Cloudflare D1 sync status indicator with manual flush sync trigger.
+  - Interactive school dictionary whitelist manager with language badges and delete controls.
+- [x] **Automated Tests**:
+  - Full test suite passing: **34/34 tests passing** in $2.16\text{ s}$ across `tests/`.
+  - Frontend production build (`vite build`) compiles cleanly with 0 errors.

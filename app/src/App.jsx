@@ -5,10 +5,12 @@ import A4Preview from './components/A4Preview';
 import QuestionBankModal from './components/QuestionBankModal';
 import AutoPickModal from './components/AutoPickModal';
 import TeacherReviewDrawer from './components/TeacherReviewDrawer';
+import AdminStatsModal from './components/AdminStatsModal';
 import { 
   Download, FileCheck, AlertCircle, RefreshCw, Layers, 
   Sparkles, FileText, CheckCircle2, ChevronRight, BookOpen, 
-  Wand2, Database, History, SlidersHorizontal, ShieldCheck 
+  Wand2, Database, History, SlidersHorizontal, ShieldCheck,
+  Camera, Languages, Coins
 } from 'lucide-react';
 
 export default function App() {
@@ -39,6 +41,9 @@ export default function App() {
   const [isBankOpen, setIsBankOpen] = useState(false);
   const [isAutoPickOpen, setIsAutoPickOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isBilingualActive, setIsBilingualActive] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
 
   // Grammar & Review State
   const [autoLogs, setAutoLogs] = useState([]);
@@ -229,6 +234,96 @@ export default function App() {
     }
   };
 
+  const handleOcrUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setOcrLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/ocr/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.text) {
+          setRawText(data.text);
+          triggerParse(data.text, header, templateOverride);
+        }
+      }
+    } catch (err) {
+      console.error("OCR upload error:", err);
+    } finally {
+      setOcrLoading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleToggleBilingual = async () => {
+    if (!currentPaper) return;
+    if (isBilingualActive) {
+      setIsBilingualActive(false);
+      triggerParse(rawText, header, templateOverride);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/bilingual/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paper: currentPaper })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const bilingualPaper = data.bilingual_paper;
+        setIsBilingualActive(true);
+        setParsedParts(prev => ({
+          ...prev,
+          [activePartKey]: {
+            ...prev[activePartKey],
+            paper: bilingualPaper,
+            sheets: prev[activePartKey].sheets.map(sh => ({
+              ...sh,
+              groups: bilingualPaper.groups
+            }))
+          }
+        }));
+      }
+    } catch (err) {
+      console.error("Bilingual translate error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportBilingual = async () => {
+    if (!currentPaper) return;
+    try {
+      setExporting(true);
+      const res = await fetch('/api/export/bilingual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paper: currentPaper })
+      });
+      if (!res.ok) throw new Error("Bilingual export failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Class ${header.class_name.replace('Class', '').trim()} ${header.subject} - Bilingual Paper.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Bilingual export error:", err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleInsertFromBank = (q) => {
     let questionSnippet = `\n${q.text}`;
     if (q.options && q.options.length === 4) {
@@ -375,6 +470,15 @@ export default function App() {
             <Database className="w-3.5 h-3.5 text-sky-600" /> Backup
           </button>
 
+          {/* AI Console / Admin Stats Button */}
+          <button
+            onClick={() => setIsAdminOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold glass-button-secondary text-slate-700 hover:text-purple-600 cursor-pointer"
+            title="Open Cloudflare D1 & AI Gateway Console"
+          >
+            <Coins className="w-3.5 h-3.5 text-purple-600" /> AI Console
+          </button>
+
           {/* Sample Selector */}
           <div className="flex items-center gap-1.5 glass-card rounded-xl px-2.5 py-1 text-xs">
             <span className="text-slate-400 font-medium">Sample:</span>
@@ -420,6 +524,17 @@ export default function App() {
             <FileCheck className="w-4 h-4 text-emerald-600" />
             <span>Answer Key</span>
           </button>
+
+          {/* Export Bilingual Button */}
+          <button
+            onClick={handleExportBilingual}
+            disabled={!currentPaper || exporting}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs glass-button-secondary text-slate-700 hover:text-purple-700 shadow-xs transition cursor-pointer"
+            title="Export Bilingual Paper (.docx) with Urdu Nastaleeq"
+          >
+            <Languages className="w-4 h-4 text-purple-600" />
+            <span>Bilingual .docx</span>
+          </button>
         </div>
       </header>
 
@@ -442,13 +557,26 @@ export default function App() {
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-indigo-600" /> Pasted Questions
               </label>
-              <button
-                onClick={() => triggerParse(rawText, header, templateOverride)}
-                disabled={loading}
-                className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-              >
-                <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Re-Parse
-              </button>
+              <div className="flex items-center gap-2.5">
+                <label className="text-[11px] font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 cursor-pointer">
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>{ocrLoading ? 'Scanning...' : 'Photo / OCR'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleOcrUpload}
+                    disabled={ocrLoading}
+                  />
+                </label>
+                <button
+                  onClick={() => triggerParse(rawText, header, templateOverride)}
+                  disabled={loading}
+                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Re-Parse
+                </button>
+              </div>
             </div>
 
             <textarea
@@ -521,36 +649,52 @@ export default function App() {
 
         {/* Right Column: Multi-part tabs & Live A4 Preview Canvas */}
         <main className="flex-1 p-6 flex flex-col items-center overflow-y-auto">
-          {/* Multi-part tabs if both Theory and MCQ were detected */}
-          {parsedParts && Object.keys(parsedParts).length > 1 && (
-            <div className="mb-4 p-1 rounded-2xl glass-card flex items-center gap-1 shadow-sm">
-              {Object.keys(parsedParts).map((partKey) => {
-                const part = parsedParts[partKey].paper;
-                const isSelected = activePartKey === partKey;
-                return (
-                  <button
-                    key={partKey}
-                    onClick={() => {
-                      setActivePartKey(partKey);
-                      runGrammarCheck(part);
-                    }}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer ${
-                      isSelected
-                        ? 'glass-button-primary text-white'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
-                    }`}
-                  >
-                    <span>{partKey === 'mcq' ? 'MCQ Paper (Template 3b)' : 'Theory Paper (Template 3a)'}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-extrabold ${
-                      part.is_valid ? 'bg-emerald-500/20 text-emerald-800' : 'bg-rose-500/20 text-rose-800'
-                    }`}>
-                      {part.total_marks_calculated}M
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* Paper View Controls Toolbar */}
+          <div className="mb-4 flex items-center gap-3">
+            {parsedParts && Object.keys(parsedParts).length > 1 && (
+              <div className="p-1 rounded-2xl glass-card flex items-center gap-1 shadow-xs">
+                {Object.keys(parsedParts).map((partKey) => {
+                  const part = parsedParts[partKey].paper;
+                  const isSelected = activePartKey === partKey;
+                  return (
+                    <button
+                      key={partKey}
+                      onClick={() => {
+                        setActivePartKey(partKey);
+                        runGrammarCheck(part);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer ${
+                        isSelected
+                          ? 'glass-button-primary text-white'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
+                      }`}
+                    >
+                      <span>{partKey === 'mcq' ? 'MCQ Paper (3b)' : 'Theory Paper (3a)'}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-extrabold ${
+                        part.is_valid ? 'bg-emerald-500/20 text-emerald-800' : 'bg-rose-500/20 text-rose-800'
+                      }`}>
+                        {part.total_marks_calculated}M
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Bilingual Mode Toggle Button */}
+            <button
+              onClick={handleToggleBilingual}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                isBilingualActive
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'glass-button-secondary text-slate-700 hover:text-purple-700'
+              }`}
+              title="Toggle English ⇄ Urdu stacked bilingual view"
+            >
+              <Languages className={`w-3.5 h-3.5 ${isBilingualActive ? 'text-white' : 'text-purple-600'}`} />
+              <span>{isBilingualActive ? 'Bilingual Active (اردو / En)' : 'Switch to Bilingual (اردو)'}</span>
+            </button>
+          </div>
 
           {/* Live A4 Preview Canvas */}
           <A4Preview
@@ -560,6 +704,12 @@ export default function App() {
           />
         </main>
       </div>
+
+      {/* Cloudflare & AI Admin Console Modal */}
+      <AdminStatsModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+      />
 
       {/* Question Bank Explorer Modal */}
       <QuestionBankModal

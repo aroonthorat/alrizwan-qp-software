@@ -181,6 +181,14 @@ export default function A4Preview({ paper, sheets, logoDataUri }) {
                               </span>
                             )}
                           </div>
+                          {group.urdu_title && (
+                            <div 
+                              className="text-right font-bold text-[16px] text-[#111] mb-2 leading-relaxed"
+                              style={{ direction: 'rtl', fontFamily: "'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', serif" }}
+                            >
+                              {group.urdu_title}
+                            </div>
+                          )}
 
                           {/* Questions */}
                           <div className="space-y-1.5 text-[16px] leading-[1.75]">
@@ -222,9 +230,19 @@ export default function A4Preview({ paper, sheets, logoDataUri }) {
                               }
 
                               return (
-                                <div key={qIdx} className="flex gap-2">
-                                  <span className="font-medium flex-shrink-0">{q.q_num}.</span>
-                                  <span className="flex-1">{q.text}</span>
+                                <div key={qIdx} className="my-1">
+                                  <div className="flex gap-2">
+                                    <span className="font-medium flex-shrink-0">{q.q_num}.</span>
+                                    <span className="flex-1">{q.text}</span>
+                                  </div>
+                                  {q.urdu_text && (
+                                    <div 
+                                      className="text-right text-[15.5px] text-[#222] pr-2 my-0.5"
+                                      style={{ direction: 'rtl', fontFamily: "'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', serif" }}
+                                    >
+                                      {q.urdu_text}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -295,12 +313,48 @@ export default function A4Preview({ paper, sheets, logoDataUri }) {
                                 <div className="font-normal">
                                   {q.q_num}. {q.text}
                                 </div>
+                                {q.urdu_text && (
+                                  <div 
+                                    className="text-right text-[12.5px] text-[#333] pr-1 leading-snug"
+                                    style={{ direction: 'rtl', fontFamily: "'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', serif" }}
+                                  >
+                                    {q.urdu_text}
+                                  </div>
+                                )}
                                 {q.options && q.options.length === 4 && (
-                                  <div className="grid grid-cols-2 gap-x-3 text-[12.5px] mt-0.5 pl-2 text-[#222]">
-                                    <div>(1) {q.options[0]}</div>
-                                    <div>(2) {q.options[1]}</div>
-                                    <div>(3) {q.options[2]}</div>
-                                    <div>(4) {q.options[3]}</div>
+                                  <div className="grid grid-cols-2 gap-x-3 text-[12px] mt-0.5 pl-2 text-[#222]">
+                                    <div>
+                                      (1) {q.options[0]}
+                                      {q.urdu_options && q.urdu_options[0] && (
+                                        <span className="block text-right text-[11px] text-[#444]" style={{ direction: 'rtl', fontFamily: "'Jameel Noori Nastaleeq', serif" }}>
+                                          {q.urdu_options[0]}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      (2) {q.options[1]}
+                                      {q.urdu_options && q.urdu_options[1] && (
+                                        <span className="block text-right text-[11px] text-[#444]" style={{ direction: 'rtl', fontFamily: "'Jameel Noori Nastaleeq', serif" }}>
+                                          {q.urdu_options[1]}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      (3) {q.options[2]}
+                                      {q.urdu_options && q.urdu_options[2] && (
+                                        <span className="block text-right text-[11px] text-[#444]" style={{ direction: 'rtl', fontFamily: "'Jameel Noori Nastaleeq', serif" }}>
+                                          {q.urdu_options[2]}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      (4) {q.options[3]}
+                                      {q.urdu_options && q.urdu_options[3] && (
+                                        <span className="block text-right text-[11px] text-[#444]" style={{ direction: 'rtl', fontFamily: "'Jameel Noori Nastaleeq', serif" }}>
+                                          {q.urdu_options[3]}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                               </div>

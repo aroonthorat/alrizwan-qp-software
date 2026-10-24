@@ -103,3 +103,25 @@ def configure_document_fonts(doc) -> None:
     rFonts.set(qn("w:hAnsi"), "Times New Roman")
     rFonts.set(qn("w:cs"), "Jameel Noori Nastaleeq")
     rFonts.set(qn("w:eastAsia"), "Noto Sans Devanagari")
+
+def set_paragraph_bidi(para: Paragraph, align: str = "right") -> None:
+    """Sets RTL / bidi properties on a paragraph for Urdu / Arabic text in Word 2007."""
+    pPr = para._p.get_or_add_pPr()
+    bidi = OxmlElement("w:bidi")
+    pPr.append(bidi)
+    if align:
+        jc = OxmlElement("w:jc")
+        jc.set(qn("w:val"), align)
+        pPr.append(jc)
+
+def set_run_bidi(run, font_name: str = "Jameel Noori Nastaleeq") -> None:
+    """Sets RTL and complex script font properties on a run for Word 2007."""
+    rPr = run._r.get_or_add_rPr()
+    rtl = OxmlElement("w:rtl")
+    rPr.append(rtl)
+    rFonts = OxmlElement("w:rFonts")
+    rFonts.set(qn("w:ascii"), font_name)
+    rFonts.set(qn("w:hAnsi"), font_name)
+    rFonts.set(qn("w:cs"), font_name)
+    rPr.append(rFonts)
+

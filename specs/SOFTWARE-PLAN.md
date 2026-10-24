@@ -4,6 +4,8 @@ Companion files (read these with this plan):
 - `QUESTION-PAPER-TEMPLATE.md` — locked paper layout (Theory 3a / MCQ 3b)
 - `QUESTION-TYPES.md` — all question types, detection, bank record
 - `GRAMMAR-RULES.md` — grammar & spelling rules (en / hi / mr / ur)
+- `DIAGRAM-PIPELINE.md` — diagram tagging and redraw models
+- `STORAGE-AND-RAG.md` — Cloudflare D1 / R2 / Workers / Vectorize, backups, RAG
 
 **Design principle:** code does everything it can for free; AI is called only where code can't
 decide, always through one gateway, on the cheapest model that does the job, with results cached.
@@ -17,13 +19,15 @@ The software must still work fully **offline without AI** (manual entry, bank, l
 |---|---|---|
 | Desktop app UI | **Tauri + React** (or Electron + React) | PageMaker-style workspace with palettes, runs on school PCs, small install |
 | Editor | TipTap (ProseMirror) | Rich text, Devanagari + Urdu RTL, inline suggestion marks |
-| Local backend | **Python FastAPI** (runs inside the app) | Best libraries for docx, grammar, embeddings |
-| Database | **SQLite** (local) | Offline, zero setup; one file per school |
-| Backup & sync | Google Drive (nightly backup), Supabase (branch sync), Cloudflare R2 (large files) | See §9 Storage |
+| Local backend | **Python FastAPI** (runs inside the app) | Local docx export, layout, rule engine (no keys, no data) |
+| Database | **Cloudflare D1** (cloud SQLite) + local SQLite offline queue | School PC not trusted with data; see `STORAGE-AND-RAG.md` |
+| Files | **Cloudflare R2** | Diagrams, logo, .docx; no egress fees |
+| API server | **Cloudflare Workers** | Login, AI gateway, API keys as secrets |
+| RAG | **Cloudflare Vectorize** + Workers AI `bge-m3` | Similar questions, diagram match, small AI context |
+| Backup | D1 Time Travel + daily R2 export + weekly Google Drive | See §9 |
 | .docx export | `python-docx` + raw XML for RTL | Word 2007-compatible output |
 | English grammar | **LanguageTool** (self-hosted Java server) | Free, offline, en-GB |
 | Rule engine | Python (from `GRAMMAR-RULES.md`) | Free, instant, all 4 languages |
-| Similarity search | `intfloat/multilingual-e5-small` (local, free) | Duplicate detection + diagram matching in all 4 languages |
 | Diagram labels | Fabric.js canvas | Put A/B/C markers on stored images |
 | Code-drawn figures | SVG → PNG (CairoSVG) | Tables, timelines, concept maps, graphs |
 | Fonts | Times New Roman, Noto Sans Devanagari, Jameel Noori Nastaleeq | Embedded name in docx; installed on PCs |
@@ -60,23 +64,23 @@ The software must still work fully **offline without AI** (manual entry, bank, l
 | 2 | Clean: spaces, blanks, Unicode (Urdu ی ک ہ), NFC | Code | Rule engine | Free |
 | 3a | Parse: numbering, Q-groups, marks, options | Code | Regex + `QUESTION-TYPES.md` keywords | Free |
 | 3b | Parse fallback: messy text the rules can't split | AI | **Claude Haiku 5.5** → strict JSON schema | Paise |
-| 4 | Validate: marks totals, 4 options, duplicates | Code | Python + local embeddings | Free |
+| 4 | Validate: marks totals, 4 options, duplicates | Code | Python + Vectorize similarity | Free |
 | 5a | Grammar: universal + language rules | Code | Rule engine | Free |
 | 5b | Grammar English | Local server | **LanguageTool** (en-GB) | Free |
 | 5c | Grammar Hindi / Marathi / Urdu wording | AI | **Claude Haiku 5.5** (only new questions, batched) | Paise |
 | 5d | "Deep check" button (teacher asks) | AI | **Claude Sonnet 5.5** — on demand only | A few rupees |
 | 6 | Review: accept / reject | Teacher | — | Free |
-| 7a | Diagram match from bank | Code | Local embeddings on question text vs diagram tags | Free |
+| 7a | Diagram match from bank | Code | Vectorize `diagrams` query | Free |
 | 7b | Auto-tag a newly uploaded diagram | AI | **Gemini 3.8 Flash** (vision) | Paise |
 | 7c | Tables, timelines, concept maps, graphs | Code | SVG generator | Free |
-| 8 | Save to bank with history | Code | SQLite | Free |
+| 8 | Save to bank with history + embed | Worker | D1 + Workers AI bge-m3 → Vectorize | Free tier |
 | 9a | Manual paper building | Teacher | — | Free |
 | 9b | Auto-pick by blueprint (chapter + type + marks) | Code | Query + least-recently-used rule | Free |
 | 10 | Layout & pagination (3a / 3b) | Code | Layout engine | Free |
 | 11a | Export question paper .docx | Code | python-docx | Free |
 | 11b | Answer key (when answers not stored) | AI | **Claude Haiku 5.5** — teacher verifies | Paise |
 | 11c | Bilingual paper (English ⇄ Urdu, for UCC) | AI | **Claude Haiku 5.5**, Sonnet 5.5 for literary text | Paise |
-| 12 | History: who made it, which questions, which exam | Code | SQLite | Free |
+| 12 | History: who made it, which questions, which exam | Worker | D1 | Free |
 
 Rule of thumb: **code → cheapest AI → stronger AI only on teacher's click.**
 
@@ -84,7 +88,7 @@ Rule of thumb: **code → cheapest AI → stronger AI only on teacher's click.**
 
 ## 4. Multi-model structure (AI gateway)
 
-All AI calls go through one module: `ai_gateway.py`. Nothing else in the app calls an API directly.
+All AI calls go through one module: the AI gateway inside the Cloudflare Worker (`worker/`). Nothing else in the app calls an API directly.
 
 ```
 ai_gateway.call(task="grammar_mr", payload=..., schema=...)
@@ -138,7 +142,7 @@ The routing table lives in `config/routes.json`, so you can swap models without 
 
 ---
 
-## 5. Database (SQLite)
+## 5. Database (Cloudflare D1)
 
 | Table | Key fields |
 |---|---|
@@ -178,18 +182,18 @@ qp-software/
 │  ├─ main.py           # FastAPI
 │  ├─ parser/           # rules from QUESTION-TYPES.md
 │  ├─ checker/          # rules from GRAMMAR-RULES.md + LanguageTool client
-│  ├─ ai_gateway.py     # all AI calls
+│  ├─ ai_client.py      # calls the Worker's AI gateway (no keys here)
 │  ├─ layout/           # template 3a / 3b pagination
 │  ├─ export/           # python-docx builders
 │  └─ figures/          # SVG generators
-├─ config/
-│  ├─ routes.json       # model routing
+├─ worker/              # Cloudflare Worker: auth, D1, R2, Vectorize, ai_gateway (keys as secrets)
+├─ config/│  ├─ routes.json       # model routing
 │  └─ school.json       # name, address, logo, branches
 ├─ data/
-│  ├─ qp.sqlite
+│  ├─ offline-queue.sqlite   # cache only
 │  ├─ diagrams/
 │  └─ dictionary/en.txt hi.txt mr.txt ur.txt
-└─ specs/               # the 4 .md files
+└─ specs/               # all spec .md files
 ```
 
 ---
@@ -204,7 +208,7 @@ qp-software/
 | 4 | Diagram bank + label tool + code-drawn tables/timelines/concept maps | No |
 | 5 | AI gateway: parse fallback, Hindi/Marathi/Urdu grammar, answer key | Yes |
 | 6 | OCR from photos, bilingual papers, diagram auto-tag | Yes |
-| 7 | Multi-branch sync (Supabase), roles, cost dashboard | Optional |
+| 7 | Multi-branch access, roles, cost dashboard (same Cloudflare backend) | Optional |
 
 The software is usable for daily papers after **Phase 1**, and every later phase adds to it
 without changing earlier work.
@@ -213,23 +217,15 @@ without changing earlier work.
 
 ## 9. Storage service
 
-| What | Where | Why |
-|---|---|---|
-| Question bank, papers, history, AI log | **SQLite** on the school's main PC (`data/qp.sqlite`) | Works offline, zero cost, fast |
-| Diagrams, logos, exported .docx | Local `data/` folders | Opened directly by the app and Word |
-| Daily backup | **Google Drive** (school account) — auto-upload of a zipped `data/` folder every night | Free with the school's Google account; easy to restore |
-| Multi-branch sharing (Phase 7) | **Supabase** — Postgres for the bank + Supabase Storage for diagrams | Same SQL tables as SQLite, built-in login, free tier to start |
-| Large files, if storage grows | **Cloudflare R2** for diagram images and old papers | Cheap storage, no download (egress) fees |
+Full spec: **`STORAGE-AND-RAG.md`**. Summary:
 
-Rules:
-- The app always reads and writes **local first**. Sync runs in the background, so a slow internet
-  connection never blocks paper making.
-- Sync only `questions`, `diagrams`, `papers`, `paper_items` and `usage`. The `ai_cache` and
-  `ai_log` tables stay local.
-- Keep the last 30 nightly backups, plus one backup per exam season kept permanently.
-- API keys and the Supabase service key live only on the admin PC/server, encrypted, never in
-  the installer or in synced data.
-- Check current free-tier limits and prices before choosing a paid plan.
+- **Cloudflare D1** = source of truth for all data (bank, papers, history, users, ai_log).
+- **Cloudflare R2** = diagrams, logo, exported .docx.
+- **Cloudflare Workers** = the only server: login, roles, AI gateway, API keys as secrets.
+- **Vectorize + Workers AI bge-m3** = RAG for similar questions, diagram matching and small AI context.
+- **Backups:** D1 Time Travel + daily export to R2 (30 days) + weekly export to Google Drive.
+- The school PC keeps only an offline queue/cache. No Supabase.
+- Cost: ₹0 to start; Workers Paid $5/month when the bank passes ~4,500 questions.
 
 ---
 

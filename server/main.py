@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
@@ -14,8 +15,15 @@ from server.parser import parse_raw_text, parse_paper_parts
 from server.layout import paginate_paper, get_logo_data_uri
 from server.export import export_paper_to_docx, generate_export_filename, build_answer_key_docx
 from server.ai_gateway import ai_gateway
-from server.storage_sync import create_nightly_backup
-from server.database import init_db
+from server.ai_client import ai_client
+from server.storage_sync import (
+    create_nightly_backup,
+    get_sync_status,
+    flush_queue_to_worker,
+    queue_sync_action
+)
+from server.bilingual_service import translate_paper_to_bilingual, build_bilingual_docx
+from server.database import init_db, get_db_connection
 from server.bank_service import (
     list_bank_questions,
     save_paper_and_record_usage,
@@ -193,9 +201,17 @@ def add_to_dictionary(req: DictionaryAddRequest):
     dict_dir = BASE_DIR / "data" / "dictionary"
     dict_dir.mkdir(parents=True, exist_ok=True)
     dict_file = dict_dir / f"{req.lang}.txt"
+    word_clean = req.word.strip()
     with open(dict_file, "a", encoding="utf-8") as f:
-        f.write(f"\n{req.word.strip()}")
-    return {"status": "ok", "word": req.word, "lang": req.lang}
+        f.write(f"\n{word_clean}")
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("INSERT OR REPLACE INTO dictionary (lang, word) VALUES (?, ?)", (req.lang, word_clean))
+    conn.commit()
+    conn.close()
+
+    return {"status": "ok", "word": word_clean, "lang": req.lang}
 
 @app.post("/api/diagrams/upload")
 async def upload_diagram(
@@ -294,6 +310,102 @@ def make_backup():
         filename=zip_path.name,
         media_type="application/zip"
     )
+
+@app.post("/api/ocr/upload")
+async def ocr_upload(file: UploadFile = File(...)):
+    content = await file.read()
+    b64_img = base64.b64encode(content).decode("utf-8")
+    res = ai_client.call(
+        task="ocr_page",
+        payload={"image_base64": b64_img, "mime_type": file.content_type or "image/jpeg"}
+    )
+    return {"text": res.get("text", "")}
+
+@app.post("/api/bilingual/translate")
+def translate_bilingual(req: ExportRequest):
+    paper_dict = req.paper.model_dump()
+    bilingual = translate_paper_to_bilingual(paper_dict)
+    return {"bilingual_paper": bilingual}
+
+@app.post("/api/export/bilingual")
+def export_bilingual(req: ExportRequest):
+    paper_dict = req.paper.model_dump()
+    bilingual = translate_paper_to_bilingual(paper_dict)
+    out_path = build_bilingual_docx(bilingual)
+    return FileResponse(
+        path=str(out_path),
+        filename=out_path.name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+class AutoTagRequest(BaseModel):
+    filename: str
+    subject: Optional[str] = "Science"
+    chapter: Optional[str] = "General"
+    image_base64: Optional[str] = None
+
+@app.post("/api/diagrams/auto-tag")
+def auto_tag_diagram(req: AutoTagRequest):
+    res = ai_client.call(
+        task="diagram_tag",
+        payload={
+            "filename": req.filename,
+            "subject": req.subject,
+            "chapter": req.chapter,
+            "image_base64": req.image_base64
+        }
+    )
+    return res
+
+@app.get("/api/sync/status")
+def sync_status():
+    return get_sync_status()
+
+@app.post("/api/sync/flush")
+def sync_flush():
+    return flush_queue_to_worker()
+
+@app.get("/api/admin/ai-stats")
+def get_ai_stats():
+    return ai_gateway.get_stats()
+
+class BudgetCapRequest(BaseModel):
+    monthly_cap: float
+
+@app.post("/api/admin/set-budget-cap")
+def set_budget_cap(req: BudgetCapRequest):
+    ai_gateway.set_monthly_cap(req.monthly_cap)
+    return {"status": "updated", "monthly_cap": req.monthly_cap}
+
+@app.get("/api/admin/dictionary")
+def get_dictionary():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT lang, word FROM dictionary ORDER BY lang, word")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return {"dictionary": rows}
+
+class DictDeleteRequest(BaseModel):
+    word: str
+    lang: str
+
+@app.delete("/api/admin/dictionary")
+def remove_from_dictionary(req: DictDeleteRequest):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM dictionary WHERE lang = ? AND word = ?", (req.lang, req.word))
+    conn.commit()
+    conn.close()
+
+    dict_file = BASE_DIR / "data" / "dictionary" / f"{req.lang}.txt"
+    if dict_file.exists():
+        with open(dict_file, "r", encoding="utf-8") as f:
+            lines = [l.strip() for l in f.readlines() if l.strip() and l.strip() != req.word]
+        with open(dict_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+    return {"status": "removed"}
 
 # Mount frontend production build if present
 if DIST_DIR.exists():

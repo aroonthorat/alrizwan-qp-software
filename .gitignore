@@ -3,6 +3,8 @@
 !.env.example
 data/qp.sqlite
 data/qp.sqlite-journal
+data/offline-queue.sqlite
+data/offline-queue.sqlite-journal
 data/*.docx
 backups/*.zip
 node_modules/
