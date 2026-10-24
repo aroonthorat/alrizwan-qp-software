@@ -12,6 +12,8 @@ from server.layout import paginate_paper, get_logo_data_uri
 from server.export import export_paper_to_docx, generate_export_filename
 from server.database import init_db
 
+from fastapi.staticfiles import StaticFiles
+
 # Initialize database
 init_db()
 
@@ -33,6 +35,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 SAMPLES_DIR = BASE_DIR / "samples"
 DATA_DIR = BASE_DIR / "data"
+ASSETS_DIR = BASE_DIR / "assets"
+DIST_DIR = BASE_DIR / "app" / "dist"
+
+# Mount assets directory for school logo and watermarks
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
 
 @app.get("/api/health")
 def health_check():
@@ -118,6 +127,10 @@ def export_paper(req: ExportRequest):
         filename=filename,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
+
+# Mount frontend production build if present
+if DIST_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(DIST_DIR), html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

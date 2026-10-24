@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .a4-sheet {
+    width: 794px;
+    height: 1123px; /* 297mm at 96dpi */
+    padding: 12mm;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+    color: #111111;
+    font-family: 'Times New Roman', Georgia, serif;
+    display: flex;
+    align-items: stretch;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+
+  .a4-inner-border {
+    position: relative;
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 0;
+    height: 273mm;
+    border: 4px double #1a1a1a;
+    overflow: hidden;
+  }
+
+  .a4-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 480px;
+    opacity: 0.07;
+    filter: grayscale(1);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .a4-content {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    padding: 22px;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .a4-footer {
+    position: absolute;
+    bottom: 3.5mm;
+    left: 12mm;
+    right: 12mm;
+    text-align: center;
+    font-size: 10px;
+    color: #555555;
+    z-index: 3;
+    font-family: 'Times New Roman', Georgia, serif;
+  }
+
+  .diagram-hatch {
+    background: repeating-linear-gradient(45deg, #f4f2ec, #f4f2ec 6px, #ffffff 6px, #ffffff 12px);
+    border: 1px solid #1a1a1a;
+  }
+}
