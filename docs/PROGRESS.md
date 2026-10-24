@@ -69,8 +69,27 @@
 
 ---
 
-## Next Steps: Phase 3 (Grammar Rule Engine, LanguageTool & Side-by-Side Review)
-1. Complete rule engine for Hindi, Marathi, and Urdu wording checks.
-2. Integrate self-hosted LanguageTool for English (`en-GB`).
-3. TipTap / ProseMirror rich-text side-by-side review screen with colored suggestion marks.
-4. One-click Accept / Reject workflow and custom school dictionary.
+## Phase 3: Grammar Rule Engine & Teacher Review Workspace (COMPLETED)
+
+### Completed Deliverables
+- [x] **Multilingual Rule Engine (`server/checker/grammar_engine.py`)**:
+  - Implements universal rules `U-01` to `U-12` (spacing, punctuation, 12-underscore blanks, bracket spacing, Unicode NFC).
+  - English rules (`EN-01` to `EN-08`): Capitalization, standalone `I`, Wh-question `?` validation, Indian/British English spelling (color $\rightarrow$ colour, center $\rightarrow$ centre, etc.).
+  - Hindi rules (`HI-01` to `HI-08`): Purna Viram `।` sentence ends, standard Devanagari forms (`गई`, `लिए`, `चाहिए`), common matra corrections (`कृपया`).
+  - Marathi rules (`MR-01` to `MR-07`): Modern Marathi `.` full stops, standard spellings (`आणि`, `पाहिजे`, `काही`, `नाही`), prevents slipped Hindi words (`और` $\rightarrow$ `आणि`, `है` $\rightarrow$ `आहे`).
+  - Urdu rules (`UR-01` to `UR-06`): Normalizes InPage Arabic characters to standard Urdu Unicode (ي $\rightarrow$ ی, ك $\rightarrow$ ک, ه $\rightarrow$ ہ), standard verb forms (`کیجیے`, `لیے`).
+- [x] **Teacher Review Workspace (`app/src/components/TeacherReviewDrawer.jsx`)**:
+  - Visual color coding: Green (silently logged AUTO fixes), Yellow (FIX / STYLE suggestions), Red (critical checks).
+  - One-click Accept / Dismiss actions per question item.
+  - "Accept All" batch action.
+  - "Add to School Dictionary" whitelist integration (`/api/grammar/dictionary/add`).
+- [x] **Automated Tests**:
+  - All 19 tests across `tests/test_phase1.py`, `tests/test_phase2_bank.py`, and `tests/test_phase3_grammar.py` passing cleanly.
+
+---
+
+## Next Steps: Phase 4 (Diagram Bank, Label Marker & Code-Drawn Figures)
+1. Diagram bank management with uploads and tagging in `data/diagrams/`.
+2. Canvas label marker tool for placing A, B, C, D marker pins on diagrams (`LABEL` type).
+3. Code-drawn SVG generators for Timelines, Concept Maps, and Completion Tables.
+4. Offline similarity matching between question text and diagram tags.

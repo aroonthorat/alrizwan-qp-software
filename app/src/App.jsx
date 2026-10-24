@@ -4,10 +4,11 @@ import ValidationBanner from './components/ValidationBanner';
 import A4Preview from './components/A4Preview';
 import QuestionBankModal from './components/QuestionBankModal';
 import AutoPickModal from './components/AutoPickModal';
+import TeacherReviewDrawer from './components/TeacherReviewDrawer';
 import { 
   Download, FileCheck, AlertCircle, RefreshCw, Layers, 
   Sparkles, FileText, CheckCircle2, ChevronRight, BookOpen, 
-  Wand2, Database, History, SlidersHorizontal 
+  Wand2, Database, History, SlidersHorizontal, ShieldCheck 
 } from 'lucide-react';
 
 export default function App() {
@@ -37,6 +38,11 @@ export default function App() {
   // Modals
   const [isBankOpen, setIsBankOpen] = useState(false);
   const [isAutoPickOpen, setIsAutoPickOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+
+  // Grammar & Review State
+  const [autoLogs, setAutoLogs] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
 
   // Load sample list on startup
   useEffect(() => {
@@ -85,13 +91,34 @@ export default function App() {
 
       // Select initial active part
       const keys = Object.keys(data.parts);
-      if (!keys.includes(activePartKey)) {
-        setActivePartKey(keys.includes("theory") ? "theory" : keys[0]);
+      const chosenKey = keys.includes(activePartKey) ? activePartKey : (keys.includes("theory") ? "theory" : keys[0]);
+      setActivePartKey(chosenKey);
+
+      // Trigger Grammar & Style Check on active paper
+      if (data.parts && data.parts[chosenKey]) {
+        runGrammarCheck(data.parts[chosenKey].paper);
       }
     } catch (err) {
       console.error("Parse failed:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runGrammarCheck = async (paperObj) => {
+    try {
+      const res = await fetch('/api/grammar/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paper: paperObj })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAutoLogs(data.auto_logs || []);
+        setSuggestions(data.suggestions || []);
+      }
+    } catch (err) {
+      console.error("Grammar check error:", err);
     }
   };
 
@@ -158,7 +185,6 @@ export default function App() {
     setHeader(newPaper.header);
     setTemplateOverride(newPaper.template);
     
-    // Format paper into raw text editor
     let formatted = "";
     newPaper.groups.forEach(g => {
       formatted += `${g.heading}\n`;
@@ -172,7 +198,6 @@ export default function App() {
     });
     setRawText(formatted);
 
-    // Update active part
     const key = newPaper.template === '3b' ? 'mcq' : 'theory';
     setActivePartKey(key);
     setParsedParts({
@@ -182,7 +207,47 @@ export default function App() {
         logo_data_uri: data.logo_data_uri
       }
     });
+    runGrammarCheck(newPaper);
   };
+
+  const handleApplySuggestion = (sugg) => {
+    if (!sugg.suggestion) return;
+    const regex = new RegExp(escapeRegex(sugg.original), 'g');
+    const updated = rawText.replace(regex, sugg.suggestion);
+    setRawText(updated);
+    triggerParse(updated, header, templateOverride);
+    setSuggestions(prev => prev.filter(s => s !== sugg));
+  };
+
+  const handleApplyAllSuggestions = () => {
+    let updated = rawText;
+    suggestions.forEach(sugg => {
+      if (sugg.suggestion) {
+        const regex = new RegExp(escapeRegex(sugg.original), 'g');
+        updated = updated.replace(regex, sugg.suggestion);
+      }
+    });
+    setRawText(updated);
+    triggerParse(updated, header, templateOverride);
+    setSuggestions([]);
+  };
+
+  const handleAddToDictionary = async (word, lang) => {
+    try {
+      await fetch('/api/grammar/dictionary/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word, lang })
+      });
+      setSuggestions(prev => prev.filter(s => s.original !== word));
+    } catch (err) {
+      console.error("Failed to add word to dictionary:", err);
+    }
+  };
+
+  function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 
   const currentActive = parsedParts && parsedParts[activePartKey] ? parsedParts[activePartKey] : null;
   const currentPaper = currentActive ? currentActive.paper : null;
@@ -200,18 +265,32 @@ export default function App() {
           <div>
             <div className="font-extrabold text-slate-900 text-sm tracking-tight flex items-center gap-2">
               Al-Rizwan Question Paper Software
-              <span className="text-[10px] bg-gradient-to-r from-indigo-500/15 to-purple-500/15 text-indigo-700 font-extrabold px-2.5 py-0.5 rounded-full border border-indigo-200/50 uppercase tracking-wider">
-                Phase 2
+              <span className="text-[10px] bg-gradient-to-r from-emerald-500/15 to-indigo-500/15 text-emerald-800 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-200/50 uppercase tracking-wider">
+                Phase 3
               </span>
             </div>
             <div className="text-[11px] text-slate-500 font-medium">
-              Offline First · Question Bank & History · Locked A4 Templates (3a Theory / 3b MCQ)
+              Offline First · Grammar Engine (en/hi/mr/ur) · Question Bank & History · Word 2007 Export
             </div>
           </div>
         </div>
 
         {/* Action Controls Bar */}
         <div className="flex items-center gap-2.5">
+          {/* Grammar & Style Review Button */}
+          <button
+            onClick={() => setIsReviewOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold glass-button-secondary text-slate-700 hover:text-emerald-700 cursor-pointer"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Grammar & Review</span>
+            {suggestions.length > 0 && (
+              <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-extrabold">
+                {suggestions.length}
+              </span>
+            )}
+          </button>
+
           {/* Question Bank Explorer Button */}
           <button
             onClick={() => setIsBankOpen(true)}
@@ -225,7 +304,7 @@ export default function App() {
             onClick={() => setIsAutoPickOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold glass-button-secondary text-slate-700 hover:text-amber-600 cursor-pointer"
           >
-            <Wand2 className="w-3.5 h-3.5 text-amber-500" /> Blueprint Auto-Pick
+            <Wand2 className="w-3.5 h-3.5 text-amber-500" /> Auto-Pick
           </button>
 
           {/* Sample Selector */}
@@ -372,7 +451,10 @@ export default function App() {
                 return (
                   <button
                     key={partKey}
-                    onClick={() => setActivePartKey(partKey)}
+                    onClick={() => {
+                      setActivePartKey(partKey);
+                      runGrammarCheck(part);
+                    }}
                     className={`px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer ${
                       isSelected
                         ? 'glass-button-primary text-white'
@@ -413,6 +495,18 @@ export default function App() {
         onClose={() => setIsAutoPickOpen(false)}
         header={header}
         onAutoPickComplete={handleAutoPickComplete}
+      />
+
+      {/* Teacher Review Drawer */}
+      <TeacherReviewDrawer
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
+        paper={currentPaper}
+        autoLogs={autoLogs}
+        suggestions={suggestions}
+        onApplySuggestion={handleApplySuggestion}
+        onApplyAll={handleApplyAllSuggestions}
+        onAddToDictionary={handleAddToDictionary}
       />
     </div>
   );

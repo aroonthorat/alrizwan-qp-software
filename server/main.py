@@ -18,6 +18,7 @@ from server.bank_service import (
     check_paper_repetition_warnings,
     auto_pick_from_bank
 )
+from server.checker import audit_paper_grammar, check_question_grammar
 
 from fastapi.staticfiles import StaticFiles
 
@@ -162,6 +163,35 @@ def auto_pick_paper(req: AutoPickRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+class GrammarCheckRequest(BaseModel):
+    paper: ParsedPaper
+
+@app.post("/api/grammar/check")
+def check_grammar(req: GrammarCheckRequest):
+    audit_res = audit_paper_grammar(req.paper)
+    sheets = paginate_paper(req.paper)
+    return {
+        "paper": req.paper.model_dump(),
+        "sheets": sheets,
+        "auto_logs": audit_res["auto_logs"],
+        "suggestions": audit_res["suggestions"],
+        "total_auto_fixed": audit_res["total_auto_fixed"],
+        "total_suggestions": audit_res["total_suggestions"]
+    }
+
+class DictionaryAddRequest(BaseModel):
+    lang: str = "en"
+    word: str
+
+@app.post("/api/grammar/dictionary/add")
+def add_to_dictionary(req: DictionaryAddRequest):
+    dict_dir = BASE_DIR / "data" / "dictionary"
+    dict_dir.mkdir(parents=True, exist_ok=True)
+    dict_file = dict_dir / f"{req.lang}.txt"
+    with open(dict_file, "a", encoding="utf-8") as f:
+        f.write(f"\n{req.word.strip()}")
+    return {"status": "ok", "word": req.word, "lang": req.lang}
 
 @app.post("/api/export")
 def export_paper(req: ExportRequest):
