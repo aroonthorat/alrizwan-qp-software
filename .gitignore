@@ -4,6 +4,7 @@
 data/qp.sqlite
 data/qp.sqlite-journal
 data/*.docx
+backups/*.zip
 node_modules/
 dist/
 __pycache__/

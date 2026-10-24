@@ -211,6 +211,24 @@ export default function App() {
     }
   };
 
+  const handleDownloadBackup = async () => {
+    try {
+      const res = await fetch('/api/backup/create', { method: 'POST' });
+      if (!res.ok) throw new Error("Backup failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `alrizwan_backup_${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Backup error:", err);
+    }
+  };
+
   const handleInsertFromBank = (q) => {
     let questionSnippet = `\n${q.text}`;
     if (q.options && q.options.length === 4) {
@@ -346,6 +364,15 @@ export default function App() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold glass-button-secondary text-slate-700 hover:text-amber-600 cursor-pointer"
           >
             <Wand2 className="w-3.5 h-3.5 text-amber-500" /> Auto-Pick
+          </button>
+
+          {/* Backup Database Button */}
+          <button
+            onClick={handleDownloadBackup}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold glass-button-secondary text-slate-700 hover:text-sky-600 cursor-pointer"
+            title="Download full database backup archive (.zip)"
+          >
+            <Database className="w-3.5 h-3.5 text-sky-600" /> Backup
           </button>
 
           {/* Sample Selector */}

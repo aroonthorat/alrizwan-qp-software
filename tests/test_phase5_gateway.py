@@ -51,3 +51,9 @@ Q.1) Answer the following. (2 × 1 = 2)
     assert res.status_code == 200
     assert "application/vnd.openxmlformats" in res.headers["content-type"]
     assert "Answer" in res.headers["content-disposition"] and "Key.docx" in res.headers["content-disposition"]
+
+def test_backup_creation():
+    res = client.post("/api/backup/create")
+    assert res.status_code == 200
+    assert "application/zip" in res.headers["content-type"]
+    assert res.headers["content-disposition"].endswith(".zip\"") or ".zip" in res.headers["content-disposition"]

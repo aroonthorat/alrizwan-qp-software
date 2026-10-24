@@ -14,6 +14,7 @@ from server.parser import parse_raw_text, parse_paper_parts
 from server.layout import paginate_paper, get_logo_data_uri
 from server.export import export_paper_to_docx, generate_export_filename, build_answer_key_docx
 from server.ai_gateway import ai_gateway
+from server.storage_sync import create_nightly_backup
 from server.database import init_db
 from server.bank_service import (
     list_bank_questions,
@@ -283,6 +284,15 @@ def export_answer_key(req: ExportRequest):
         path=str(out_path),
         filename=filename,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+@app.post("/api/backup/create")
+def make_backup():
+    zip_path = create_nightly_backup()
+    return FileResponse(
+        path=str(zip_path),
+        filename=zip_path.name,
+        media_type="application/zip"
     )
 
 # Mount frontend production build if present
