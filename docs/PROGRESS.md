@@ -40,9 +40,37 @@
 
 ---
 
-## Next Steps: Phase 2 (Question Bank & History)
-1. Complete SQLite question bank integration with `questions`, `papers`, `paper_items`, `usage` tables.
-2. Filter bank by class, subject, chapter, type, marks, language.
-3. Track question usage history by exam and date.
-4. Repetition detection: Warn when a question was used in the same class/subject within the last 2 exams.
-5. Auto-pick questions based on blueprint and least-recently-used history.
+## Phase 2: Question Bank, History & Blueprint Auto-Pick (COMPLETED)
+
+### Completed Deliverables
+- [x] **Question Bank Storage & Service (`server/bank_service.py`)**:
+  - Full CRUD operations with SQLite `questions`, `papers`, `paper_items`, `usage` tables.
+  - Seeding script [`server/seed_bank.py`](file:///e:/Codespace/alrizwan-qp-software/server/seed_bank.py) populated with 67 realistic questions.
+- [x] **Question Bank Explorer UI (`app/src/components/QuestionBankModal.jsx`)**:
+  - Instant search across text, keywords, and chapters.
+  - Multi-criteria filtering by Class, Subject, Question Type, and Marks.
+  - Question cards with colored badges and historical exam usage tags (`Used in First Unit Test (2026-08-12)` / `Fresh (Never used)`).
+  - One-click "Insert into Paper" button.
+- [x] **Repetition Guardrail (`specs/QUESTION-TYPES.md §8`)**:
+  - Automatically checks each question against SQLite usage history.
+  - Flags and warns if a question was used in the same class and subject within the last 2 exams.
+  - Prevents internal duplicate questions within the same paper.
+- [x] **Blueprint Auto-Pick Paper Builder (`app/src/components/AutoPickModal.jsx`)**:
+  - Generates full papers by question count and template type.
+  - Applies **least-recently-used** algorithm to ensure freshness and balance across chapters.
+  - Auto-updates the live A4 preview and header marks.
+- [x] **Glass & Liquid Morphism UI Design System**:
+  - Ambient fluid liquid gradient meshes.
+  - Translucent frosted glass surfaces (`glass-card`, `glass-input`, `glass-button-primary`).
+  - Subtle light reflections and responsive hover micro-interactions.
+  - Strictly preserves locked A4 print/export geometries for the paper canvas.
+- [x] **Automated Tests**:
+  - All 13 tests across `tests/test_phase1.py` and `tests/test_phase2_bank.py` passing in $1.06\text{ s}$.
+
+---
+
+## Next Steps: Phase 3 (Grammar Rule Engine, LanguageTool & Side-by-Side Review)
+1. Complete rule engine for Hindi, Marathi, and Urdu wording checks.
+2. Integrate self-hosted LanguageTool for English (`en-GB`).
+3. TipTap / ProseMirror rich-text side-by-side review screen with colored suggestion marks.
+4. One-click Accept / Reject workflow and custom school dictionary.

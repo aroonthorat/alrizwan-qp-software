@@ -1,47 +1,59 @@
 {
   "ocr_page": {
     "primary": "gemini-3.8-flash",
-    "fallback": "claude-haiku-5.5",
+    "fallback": "claude-haiku-5-5",
     "output": "plain_text"
   },
   "parse_fallback": {
-    "primary": "claude-haiku-5.5",
+    "primary": "claude-haiku-5-5",
     "fallback": "gemini-3.8-flash",
     "output": "json"
   },
   "grammar_hi": {
-    "primary": "claude-haiku-5.5",
+    "primary": "claude-haiku-5-5",
     "fallback": "gemini-3.8-flash",
     "output": "json"
   },
   "grammar_mr": {
-    "primary": "claude-haiku-5.5",
+    "primary": "claude-haiku-5-5",
     "fallback": "gemini-3.8-flash",
     "output": "json"
   },
   "grammar_ur": {
-    "primary": "claude-haiku-5.5",
+    "primary": "claude-haiku-5-5",
     "fallback": "gemini-3.8-flash",
     "output": "json"
   },
   "grammar_deep": {
-    "primary": "claude-sonnet-5.5",
+    "primary": "claude-sonnet-5-5",
     "fallback": null,
     "output": "json"
   },
   "diagram_tag": {
     "primary": "gemini-3.8-flash",
-    "fallback": "claude-haiku-5.5",
+    "fallback": "claude-haiku-5-5",
     "output": "json"
   },
+  "diagram_redraw": {
+    "primary": "nano-banana-2.1",
+    "fallback": null,
+    "resolution": "2K",
+    "output": "image"
+  },
+  "diagram_redraw_complex": {
+    "primary": "nano-banana-pro",
+    "fallback": null,
+    "resolution": "2K",
+    "output": "image"
+  },
   "answer_key": {
-    "primary": "claude-haiku-5.5",
+    "primary": "claude-haiku-5-5",
     "fallback": "gemini-3.8-flash",
     "output": "json"
   },
   "translate": {
-    "primary": "claude-haiku-5.5",
-    "fallback": "claude-sonnet-5.5",
+    "primary": "claude-haiku-5-5",
+    "fallback": "claude-sonnet-5-5",
     "output": "text"
   }
 }

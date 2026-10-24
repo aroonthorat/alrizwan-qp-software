@@ -1,7 +1,8 @@
 import os
 import json
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -11,6 +12,12 @@ from server.parser import parse_raw_text, parse_paper_parts
 from server.layout import paginate_paper, get_logo_data_uri
 from server.export import export_paper_to_docx, generate_export_filename
 from server.database import init_db
+from server.bank_service import (
+    list_bank_questions,
+    save_paper_and_record_usage,
+    check_paper_repetition_warnings,
+    auto_pick_from_bank
+)
 
 from fastapi.staticfiles import StaticFiles
 
@@ -88,6 +95,10 @@ def parse_paper(req: ParseRequest):
     for key, paper in parts.items():
         if req.template_override:
             paper.template = req.template_override
+        # Repetition check from SQLite history
+        rep_warns = check_paper_repetition_warnings(paper)
+        paper.validation_warnings.extend(rep_warns)
+
         sheets = paginate_paper(paper)
         results[key] = {
             "paper": paper.model_dump(),
@@ -106,6 +117,52 @@ def parse_paper(req: ParseRequest):
         "logo_data_uri": primary["logo_data_uri"]
     }
 
+@app.get("/api/bank/questions")
+def get_bank_questions(
+    class_name: Optional[str] = None,
+    subject: Optional[str] = None,
+    chapter: Optional[str] = None,
+    q_type: Optional[str] = None,
+    lang: Optional[str] = None,
+    q: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    return list_bank_questions(
+        class_filter=class_name,
+        subject_filter=subject,
+        chapter_filter=chapter,
+        type_filter=q_type,
+        lang_filter=lang,
+        search_query=q,
+        limit=limit,
+        offset=offset
+    )
+
+class AutoPickRequest(BaseModel):
+    header: PaperHeader
+    template: str = "3a"
+    question_count: int = 10
+    preferred_type: Optional[str] = None
+
+@app.post("/api/bank/auto-pick")
+def auto_pick_paper(req: AutoPickRequest):
+    try:
+        paper = auto_pick_from_bank(
+            header=req.header,
+            template=req.template,
+            question_count=req.question_count,
+            preferred_type=req.preferred_type
+        )
+        sheets = paginate_paper(paper)
+        return {
+            "paper": paper.model_dump(),
+            "sheets": sheets,
+            "logo_data_uri": get_logo_data_uri()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/api/export")
 def export_paper(req: ExportRequest):
     paper = req.paper
@@ -121,6 +178,12 @@ def export_paper(req: ExportRequest):
 
     if not docx_path.exists():
         raise HTTPException(status_code=500, detail="Failed to generate document")
+
+    # Record paper and question usage in SQLite
+    try:
+        save_paper_and_record_usage(paper, str(docx_path))
+    except Exception as err:
+        print(f"Warning: Failed to record paper usage in SQLite: {err}")
 
     return FileResponse(
         path=str(docx_path),

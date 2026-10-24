@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import HeaderForm from './components/HeaderForm';
 import ValidationBanner from './components/ValidationBanner';
 import A4Preview from './components/A4Preview';
+import QuestionBankModal from './components/QuestionBankModal';
+import AutoPickModal from './components/AutoPickModal';
 import { 
   Download, FileCheck, AlertCircle, RefreshCw, Layers, 
-  Sparkles, FileText, CheckCircle2, ChevronRight 
+  Sparkles, FileText, CheckCircle2, ChevronRight, BookOpen, 
+  Wand2, Database, History, SlidersHorizontal 
 } from 'lucide-react';
 
 export default function App() {
@@ -31,6 +34,10 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(null);
 
+  // Modals
+  const [isBankOpen, setIsBankOpen] = useState(false);
+  const [isAutoPickOpen, setIsAutoPickOpen] = useState(false);
+
   // Load sample list on startup
   useEffect(() => {
     fetch('/api/samples')
@@ -38,7 +45,6 @@ export default function App() {
       .then(data => {
         setSamples(data);
         if (data.length > 0) {
-          // Pre-load the first sample
           loadSampleContent(data[0].name);
         }
       })
@@ -52,7 +58,6 @@ export default function App() {
       const res = await fetch(`/api/samples/${filename}`);
       const data = await res.json();
       setRawText(data.content);
-      // Automatically trigger parse
       triggerParse(data.content, header, templateOverride);
     } catch (err) {
       console.error("Failed to load sample:", err);
@@ -80,12 +85,8 @@ export default function App() {
 
       // Select initial active part
       const keys = Object.keys(data.parts);
-      if (keys.includes(activePartKey)) {
-        // keep current
-      } else if (keys.includes("theory")) {
-        setActivePartKey("theory");
-      } else {
-        setActivePartKey(keys[0]);
+      if (!keys.includes(activePartKey)) {
+        setActivePartKey(keys.includes("theory") ? "theory" : keys[0]);
       }
     } catch (err) {
       console.error("Parse failed:", err);
@@ -127,7 +128,6 @@ export default function App() {
         if (match && match[1]) filename = match[1];
       }
 
-      // Trigger browser download
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -143,37 +143,96 @@ export default function App() {
     }
   };
 
+  const handleInsertFromBank = (q) => {
+    let questionSnippet = `\n${q.text}`;
+    if (q.options && q.options.length === 4) {
+      questionSnippet += `\n(1) ${q.options[0]} (2) ${q.options[1]}\n(3) ${q.options[2]} (4) ${q.options[3]}`;
+    }
+    const updated = rawText ? `${rawText}\n${questionSnippet}` : questionSnippet;
+    setRawText(updated);
+    triggerParse(updated, header, templateOverride);
+  };
+
+  const handleAutoPickComplete = (data) => {
+    const newPaper = data.paper;
+    setHeader(newPaper.header);
+    setTemplateOverride(newPaper.template);
+    
+    // Format paper into raw text editor
+    let formatted = "";
+    newPaper.groups.forEach(g => {
+      formatted += `${g.heading}\n`;
+      g.questions.forEach(q => {
+        formatted += `${q.q_num}. ${q.text}\n`;
+        if (q.options && q.options.length === 4) {
+          formatted += `(1) ${q.options[0]} (2) ${q.options[1]}\n(3) ${q.options[2]} (4) ${q.options[3]}\n`;
+        }
+      });
+      formatted += "\n";
+    });
+    setRawText(formatted);
+
+    // Update active part
+    const key = newPaper.template === '3b' ? 'mcq' : 'theory';
+    setActivePartKey(key);
+    setParsedParts({
+      [key]: {
+        paper: newPaper,
+        sheets: data.sheets,
+        logo_data_uri: data.logo_data_uri
+      }
+    });
+  };
+
   const currentActive = parsedParts && parsedParts[activePartKey] ? parsedParts[activePartKey] : null;
   const currentPaper = currentActive ? currentActive.paper : null;
   const currentSheets = currentActive ? currentActive.sheets : [];
   const logoDataUri = currentActive ? currentActive.logo_data_uri : null;
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
-      {/* Top Navbar */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen liquid-ambient-bg flex flex-col font-sans">
+      {/* Liquid Frosted Glass Top Navbar */}
+      <header className="px-6 py-3.5 glass-card border-b border-white/40 sticky top-0 z-40 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src="/assets/logo.jpg" alt="School Logo" className="w-9 h-9 object-contain rounded" />
+          <div className="p-1 rounded-xl bg-white/80 shadow-xs border border-white/60">
+            <img src="/assets/logo.jpg" alt="School Logo" className="w-8 h-8 object-contain rounded-lg" />
+          </div>
           <div>
-            <div className="font-bold text-slate-900 text-sm tracking-tight flex items-center gap-2">
+            <div className="font-extrabold text-slate-900 text-sm tracking-tight flex items-center gap-2">
               Al-Rizwan Question Paper Software
-              <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                Phase 1
+              <span className="text-[10px] bg-gradient-to-r from-indigo-500/15 to-purple-500/15 text-indigo-700 font-extrabold px-2.5 py-0.5 rounded-full border border-indigo-200/50 uppercase tracking-wider">
+                Phase 2
               </span>
             </div>
-            <div className="text-[11px] text-slate-500">
-              Offline First · Locked A4 Templates (3a Theory / 3b MCQ) · Word 2007 Compatible
+            <div className="text-[11px] text-slate-500 font-medium">
+              Offline First · Question Bank & History · Locked A4 Templates (3a Theory / 3b MCQ)
             </div>
           </div>
         </div>
 
-        {/* Right Action Bar */}
-        <div className="flex items-center gap-3">
-          {/* Sample Loader */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-            <span className="text-slate-500 font-medium">Sample:</span>
+        {/* Action Controls Bar */}
+        <div className="flex items-center gap-2.5">
+          {/* Question Bank Explorer Button */}
+          <button
+            onClick={() => setIsBankOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold glass-button-secondary text-slate-700 hover:text-indigo-600 cursor-pointer"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> Question Bank
+          </button>
+
+          {/* Blueprint Auto-Pick Button */}
+          <button
+            onClick={() => setIsAutoPickOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold glass-button-secondary text-slate-700 hover:text-amber-600 cursor-pointer"
+          >
+            <Wand2 className="w-3.5 h-3.5 text-amber-500" /> Blueprint Auto-Pick
+          </button>
+
+          {/* Sample Selector */}
+          <div className="flex items-center gap-1.5 glass-card rounded-xl px-2.5 py-1 text-xs">
+            <span className="text-slate-400 font-medium">Sample:</span>
             <select
-              className="bg-transparent font-medium text-slate-700 focus:outline-none cursor-pointer"
+              className="bg-transparent font-semibold text-slate-700 focus:outline-none cursor-pointer"
               value={selectedSample}
               onChange={(e) => loadSampleContent(e.target.value)}
             >
@@ -189,19 +248,19 @@ export default function App() {
           <button
             onClick={() => handleExport(activePartKey)}
             disabled={!currentPaper || !currentPaper.is_valid || exporting}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-xs transition-all shadow-sm ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition cursor-pointer ${
               currentPaper && currentPaper.is_valid && !exporting
-                ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer active:scale-95'
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                ? 'glass-button-primary text-white cursor-pointer active:scale-95'
+                : 'bg-slate-200/70 text-slate-400 border border-slate-300/40 cursor-not-allowed'
             }`}
             title={
               currentPaper && !currentPaper.is_valid
                 ? currentPaper.validation_errors.join('\n')
-                : 'Export to Word (.docx)'
+                : 'Export Word Document (.docx)'
             }
           >
             <Download className="w-4 h-4" />
-            {exporting ? 'Generating .docx...' : 'Export to Word (.docx)'}
+            {exporting ? 'Generating...' : 'Export to Word (.docx)'}
           </button>
         </div>
       </header>
@@ -209,7 +268,7 @@ export default function App() {
       {/* Main Workspace Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Column: Form + Input Editor */}
-        <aside className="w-[480px] border-r border-slate-200 bg-slate-50/50 p-4 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-65px)]">
+        <aside className="w-[490px] p-4 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-65px)]">
           {/* Header Form */}
           <HeaderForm
             header={header}
@@ -220,22 +279,22 @@ export default function App() {
           />
 
           {/* Question Input Box */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1">
+          <div className="p-4 rounded-2xl glass-card flex flex-col flex-1">
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-indigo-600" /> Pasted Questions
               </label>
               <button
                 onClick={() => triggerParse(rawText, header, templateOverride)}
                 disabled={loading}
-                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
               >
                 <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Re-Parse
               </button>
             </div>
 
             <textarea
-              className="w-full flex-1 min-h-[220px] p-3 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 leading-relaxed resize-y bg-slate-50/30"
+              className="w-full flex-1 min-h-[220px] p-3 text-xs font-mono rounded-xl glass-input leading-relaxed resize-y"
               placeholder="Paste question paper text here (e.g. Q.1) Answer the following... or 1. Stem (1) Opt1 (2) Opt2...)"
               value={rawText}
               onChange={(e) => {
@@ -245,18 +304,18 @@ export default function App() {
             />
 
             {/* Template Selector Controls */}
-            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-medium">Layout Template:</span>
-              <div className="flex gap-1.5">
+            <div className="mt-3 pt-3 border-t border-slate-200/50 flex items-center justify-between text-xs">
+              <span className="text-slate-500 font-semibold">Layout Template:</span>
+              <div className="flex gap-1.5 p-0.5 rounded-xl glass-card">
                 <button
                   onClick={() => {
                     setTemplateOverride(null);
                     triggerParse(rawText, header, null);
                   }}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
                     templateOverride === null
                       ? 'bg-slate-800 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   Auto
@@ -266,10 +325,10 @@ export default function App() {
                     setTemplateOverride('3a');
                     triggerParse(rawText, header, '3a');
                   }}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
                     (templateOverride === '3a' || (!templateOverride && currentPaper?.template === '3a'))
                       ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   3a Theory
@@ -279,10 +338,10 @@ export default function App() {
                     setTemplateOverride('3b');
                     triggerParse(rawText, header, '3b');
                   }}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
                     (templateOverride === '3b' || (!templateOverride && currentPaper?.template === '3b'))
                       ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   3b MCQ
@@ -295,7 +354,7 @@ export default function App() {
           <ValidationBanner paper={currentPaper} headerMarks={header.marks} />
 
           {exportError && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs flex items-center gap-2">
+            <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-300 text-rose-900 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
               <span>{exportError}</span>
             </div>
@@ -303,10 +362,10 @@ export default function App() {
         </aside>
 
         {/* Right Column: Multi-part tabs & Live A4 Preview Canvas */}
-        <main className="flex-1 bg-slate-200/80 p-6 flex flex-col items-center overflow-y-auto">
+        <main className="flex-1 p-6 flex flex-col items-center overflow-y-auto">
           {/* Multi-part tabs if both Theory and MCQ were detected */}
           {parsedParts && Object.keys(parsedParts).length > 1 && (
-            <div className="mb-4 bg-white/90 backdrop-blur p-1 rounded-xl shadow-xs border border-slate-300/80 flex items-center gap-1">
+            <div className="mb-4 p-1 rounded-2xl glass-card flex items-center gap-1 shadow-sm">
               {Object.keys(parsedParts).map((partKey) => {
                 const part = parsedParts[partKey].paper;
                 const isSelected = activePartKey === partKey;
@@ -314,15 +373,15 @@ export default function App() {
                   <button
                     key={partKey}
                     onClick={() => setActivePartKey(partKey)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition cursor-pointer ${
+                    className={`px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer ${
                       isSelected
-                        ? 'bg-indigo-600 text-white shadow'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'glass-button-primary text-white'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
                     }`}
                   >
                     <span>{partKey === 'mcq' ? 'MCQ Paper (Template 3b)' : 'Theory Paper (Template 3a)'}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                      part.is_valid ? 'bg-emerald-500/20 text-emerald-100' : 'bg-rose-500/20 text-rose-100'
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-extrabold ${
+                      part.is_valid ? 'bg-emerald-500/20 text-emerald-800' : 'bg-rose-500/20 text-rose-800'
                     }`}>
                       {part.total_marks_calculated}M
                     </span>
@@ -332,7 +391,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Live A4 Preview */}
+          {/* Live A4 Preview Canvas */}
           <A4Preview
             paper={currentPaper}
             sheets={currentSheets}
@@ -340,6 +399,21 @@ export default function App() {
           />
         </main>
       </div>
+
+      {/* Question Bank Explorer Modal */}
+      <QuestionBankModal
+        isOpen={isBankOpen}
+        onClose={() => setIsBankOpen(false)}
+        onInsertQuestion={handleInsertFromBank}
+      />
+
+      {/* Blueprint Auto-Pick Modal */}
+      <AutoPickModal
+        isOpen={isAutoPickOpen}
+        onClose={() => setIsAutoPickOpen(false)}
+        header={header}
+        onAutoPickComplete={handleAutoPickComplete}
+      />
     </div>
   );
 }

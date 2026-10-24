@@ -7,18 +7,20 @@ export default function HeaderForm({ header, onChange }) {
   };
 
   return (
-    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
-        <GraduationCap className="w-5 h-5 text-indigo-600" />
-        <h2 className="font-semibold text-slate-800 text-sm tracking-wide uppercase">Paper Header Details</h2>
+    <div className="p-4 rounded-2xl glass-card transition-all">
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200/50">
+        <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+          <GraduationCap className="w-4 h-4" />
+        </div>
+        <h2 className="font-bold text-slate-800 text-xs tracking-wider uppercase">Paper Header Details</h2>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
         <div>
-          <label className="block text-slate-500 font-medium mb-1">Class</label>
+          <label className="block text-slate-500 font-semibold mb-1 text-[11px]">Class</label>
           <input
             type="text"
-            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium"
+            className="w-full px-2.5 py-1.5 rounded-xl glass-input font-medium"
             value={header.class_name}
             onChange={(e) => handleChange('class_name', e.target.value)}
             placeholder="e.g. Class 9th"
@@ -26,10 +28,10 @@ export default function HeaderForm({ header, onChange }) {
         </div>
 
         <div>
-          <label className="block text-slate-500 font-medium mb-1">Subject</label>
+          <label className="block text-slate-500 font-semibold mb-1 text-[11px]">Subject</label>
           <input
             type="text"
-            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium"
+            className="w-full px-2.5 py-1.5 rounded-xl glass-input font-medium"
             value={header.subject}
             onChange={(e) => handleChange('subject', e.target.value)}
             placeholder="e.g. Social Science"
@@ -37,10 +39,10 @@ export default function HeaderForm({ header, onChange }) {
         </div>
 
         <div>
-          <label className="block text-slate-500 font-medium mb-1">Exam / Paper Title</label>
+          <label className="block text-slate-500 font-semibold mb-1 text-[11px]">Exam Title</label>
           <input
             type="text"
-            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium"
+            className="w-full px-2.5 py-1.5 rounded-xl glass-input font-medium"
             value={header.paper_name}
             onChange={(e) => handleChange('paper_name', e.target.value)}
             placeholder="e.g. FIRST UNIT TEST"
@@ -48,10 +50,10 @@ export default function HeaderForm({ header, onChange }) {
         </div>
 
         <div>
-          <label className="block text-slate-500 font-medium mb-1">Month & Year</label>
+          <label className="block text-slate-500 font-semibold mb-1 text-[11px]">Month & Year</label>
           <input
             type="text"
-            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium"
+            className="w-full px-2.5 py-1.5 rounded-xl glass-input font-medium"
             value={header.month_year}
             onChange={(e) => handleChange('month_year', e.target.value)}
             placeholder="e.g. AUG. 2026"
@@ -59,30 +61,30 @@ export default function HeaderForm({ header, onChange }) {
         </div>
 
         <div>
-          <label className="block text-slate-500 font-medium mb-1">Date</label>
+          <label className="block text-slate-500 font-semibold mb-1 text-[11px]">Date</label>
           <input
             type="date"
-            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium"
+            className="w-full px-2.5 py-1.5 rounded-xl glass-input font-medium"
             value={header.date || ''}
             onChange={(e) => handleChange('date', e.target.value)}
           />
         </div>
 
         <div>
-          <label className="block text-slate-500 font-medium mb-1">Total Marks</label>
+          <label className="block text-slate-500 font-semibold mb-1 text-[11px]">Max Marks</label>
           <input
             type="number"
-            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-semibold text-indigo-700"
+            className="w-full px-2.5 py-1.5 rounded-xl glass-input font-bold text-indigo-700"
             value={header.marks}
             onChange={(e) => handleChange('marks', parseInt(e.target.value) || 0)}
           />
         </div>
 
         <div>
-          <label className="block text-slate-500 font-medium mb-1">Duration / Time</label>
+          <label className="block text-slate-500 font-semibold mb-1 text-[11px]">Duration / Time</label>
           <input
             type="text"
-            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium"
+            className="w-full px-2.5 py-1.5 rounded-xl glass-input font-medium"
             value={header.time}
             onChange={(e) => handleChange('time', e.target.value)}
             placeholder="e.g. 2 Hours"
@@ -90,12 +92,12 @@ export default function HeaderForm({ header, onChange }) {
         </div>
 
         <div>
-          <label className="block text-slate-500 font-medium mb-1">Roll No. Boxes</label>
+          <label className="block text-slate-500 font-semibold mb-1 text-[11px]">Roll No. Boxes</label>
           <input
             type="number"
             min="2"
             max="6"
-            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium"
+            className="w-full px-2.5 py-1.5 rounded-xl glass-input font-medium"
             value={header.roll_no_boxes}
             onChange={(e) => handleChange('roll_no_boxes', parseInt(e.target.value) || 4)}
           />
