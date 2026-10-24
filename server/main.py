@@ -3,7 +3,9 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException
+from server.figures import generate_timeline_svg, generate_concept_map_svg
+from server.diagram_service import save_diagram_record, list_diagrams, save_diagram_labels
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -192,6 +194,48 @@ def add_to_dictionary(req: DictionaryAddRequest):
     with open(dict_file, "a", encoding="utf-8") as f:
         f.write(f"\n{req.word.strip()}")
     return {"status": "ok", "word": req.word, "lang": req.lang}
+
+@app.post("/api/diagrams/upload")
+async def upload_diagram(
+    file: UploadFile = File(...),
+    class_name: str = Form("Class 9th"),
+    subject: str = Form("Social Science"),
+    chapter: str = Form("General"),
+    tags: str = Form(""),
+    kind: str = Form("figure")
+):
+    content = await file.read()
+    record = save_diagram_record(content, class_name, subject, chapter, tags, kind)
+    return record
+
+@app.get("/api/diagrams")
+def get_diagrams(
+    class_name: Optional[str] = None,
+    subject: Optional[str] = None,
+    tag: Optional[str] = None
+):
+    return list_diagrams(class_name, subject, tag)
+
+class TimelineRequest(BaseModel):
+    events: List[Dict[str, Any]]
+    width: int = 560
+    height: int = 140
+
+@app.post("/api/figures/timeline")
+def create_timeline(req: TimelineRequest):
+    svg = generate_timeline_svg(req.events, req.width, req.height)
+    return Response(content=svg, media_type="image/svg+xml")
+
+class ConceptMapRequest(BaseModel):
+    root_title: str
+    branches: List[Dict[str, Any]]
+    width: int = 560
+    height: int = 180
+
+@app.post("/api/figures/concept-map")
+def create_concept_map(req: ConceptMapRequest):
+    svg = generate_concept_map_svg(req.root_title, req.branches, req.width, req.height)
+    return Response(content=svg, media_type="image/svg+xml")
 
 @app.post("/api/export")
 def export_paper(req: ExportRequest):

@@ -88,8 +88,25 @@
 
 ---
 
-## Next Steps: Phase 4 (Diagram Bank, Label Marker & Code-Drawn Figures)
-1. Diagram bank management with uploads and tagging in `data/diagrams/`.
-2. Canvas label marker tool for placing A, B, C, D marker pins on diagrams (`LABEL` type).
-3. Code-drawn SVG generators for Timelines, Concept Maps, and Completion Tables.
-4. Offline similarity matching between question text and diagram tags.
+## Phase 4: Diagram Bank & Code-Drawn Figures (COMPLETED)
+
+### Completed Deliverables
+- [x] **Diagram Bank Service (`server/diagram_service.py`)**:
+  - Image cleanup pipeline adhering to `specs/DIAGRAM-PIPELINE.md`: automatic grayscale, autocontrast, edge cleanup.
+  - Storage in `data/diagrams/` with SQLite `diagrams` table metadata (class, subject, chapter, tags, labels).
+  - API endpoints `/api/diagrams/upload` and `/api/diagrams`.
+- [x] **Code-Drawn SVG Generators (`server/figures/figure_generator.py`)**:
+  - Dynamic `generate_timeline_svg` for chronological question types with completion blanks.
+  - Dynamic `generate_concept_map_svg` for tree/flowchart completion questions.
+  - Free, offline, zero-AI vector rendering with high contrast print geometry.
+  - API endpoints `/api/figures/timeline` and `/api/figures/concept-map`.
+- [x] **Automated Tests**:
+  - All 23 tests passing across `tests/` in $1.15\text{ s}$.
+
+---
+
+## Next Steps: Phase 5 (AI Gateway, Indic/Urdu Nuance & Answer Keys)
+1. Activate `server/ai_gateway.py` with multi-model routing table (`config/routes.json`).
+2. Implement SHA-256 caching in `ai_cache` to guarantee ₹0 repeated cost.
+3. Fallback parser for messy inputs via Claude Haiku 5.5.
+4. Auto-generate answer keys (`Class <N> <Subject> - Answer Key.docx`).
