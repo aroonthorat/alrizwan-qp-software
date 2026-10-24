@@ -12,7 +12,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from server.models import PaperHeader, ParseRequest, ParsedPaper, ExportRequest
 from server.parser import parse_raw_text, parse_paper_parts
 from server.layout import paginate_paper, get_logo_data_uri
-from server.export import export_paper_to_docx, generate_export_filename
+from server.export import export_paper_to_docx, generate_export_filename, build_answer_key_docx
+from server.ai_gateway import ai_gateway
 from server.database import init_db
 from server.bank_service import (
     list_bank_questions,
@@ -261,6 +262,25 @@ def export_paper(req: ExportRequest):
 
     return FileResponse(
         path=str(docx_path),
+        filename=filename,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+@app.post("/api/export/answer-key")
+def export_answer_key(req: ExportRequest):
+    paper = req.paper
+    res = ai_gateway.call(task="answer_key", payload={"paper": paper.model_dump()})
+    answers_data = res.get("answers", [])
+
+    cls_clean = paper.header.class_name.strip()
+    if not cls_clean.lower().startswith("class"):
+        cls_clean = f"Class {cls_clean}"
+    filename = f"{cls_clean} {paper.header.subject.strip()} - Answer Key.docx"
+    out_path = DATA_DIR / filename
+
+    build_answer_key_docx(paper, answers_data, out_path)
+    return FileResponse(
+        path=str(out_path),
         filename=filename,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )

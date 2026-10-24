@@ -105,8 +105,24 @@
 
 ---
 
-## Next Steps: Phase 5 (AI Gateway, Indic/Urdu Nuance & Answer Keys)
-1. Activate `server/ai_gateway.py` with multi-model routing table (`config/routes.json`).
-2. Implement SHA-256 caching in `ai_cache` to guarantee ₹0 repeated cost.
-3. Fallback parser for messy inputs via Claude Haiku 5.5.
-4. Auto-generate answer keys (`Class <N> <Subject> - Answer Key.docx`).
+## Phase 5: AI Gateway, Answer Key Generator & Cost Tracking (COMPLETED)
+
+### Completed Deliverables
+- [x] **AI Gateway Architecture (`server/ai_gateway.py`)**:
+  - Implements multi-model routing table (`config/routes.json` with Claude Haiku 5.5, Gemini 3.8 Flash, Claude Sonnet 5.5).
+  - SHA-256 caching in `ai_cache` table (cache hits return identical results for ₹0 cost).
+  - Call logger tracking `time, task, model, tokens_in, tokens_out, cost_inr, cache_hit` in `ai_log` table.
+  - Monthly budget cap enforcement: pauses AI once ₹500 cap is reached and continues in offline code mode.
+- [x] **Answer Key .docx Generator (`server/export/answer_key_builder.py`)**:
+  - Automatically produces `Class <N> <Subject> - Answer Key.docx`.
+  - OpenXML table layout with question number, type, marks, and evaluation points.
+  - Export endpoint at `/api/export/answer-key` and one-click UI download button.
+- [x] **Automated Tests**:
+  - All 26 tests passing across `tests/` in $1.42\text{ s}$.
+
+---
+
+## Next Steps: Phase 6 (Photo OCR, Bilingual Papers & Auto-Tagging)
+1. Photo / handwriting OCR via Gemini 3.8 Flash vision.
+2. Bilingual paper generator (English $\rightleftarrows$ Urdu side-by-side or stacked).
+3. Diagram auto-tagging via Gemini 3.8 Flash vision.

@@ -170,6 +170,47 @@ export default function App() {
     }
   };
 
+  const handleExportAnswerKey = async (targetPartKey = activePartKey) => {
+    if (!parsedParts || !parsedParts[targetPartKey]) return;
+    const currentPaper = parsedParts[targetPartKey].paper;
+
+    try {
+      setExporting(true);
+      setExportError(null);
+      const res = await fetch('/api/export/answer-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paper: currentPaper })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || "Answer key export failed");
+      }
+
+      const blob = await res.blob();
+      const contentDisposition = res.headers.get('Content-Disposition');
+      let filename = `${currentPaper.header.class_name} ${currentPaper.header.subject} - Answer Key.docx`;
+      if (contentDisposition && contentDisposition.includes('filename=')) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) filename = match[1];
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleInsertFromBank = (q) => {
     let questionSnippet = `\n${q.text}`;
     if (q.options && q.options.length === 4) {
@@ -323,11 +364,11 @@ export default function App() {
             </select>
           </div>
 
-          {/* Export Button */}
+          {/* Export Question Paper Button */}
           <button
             onClick={() => handleExport(activePartKey)}
             disabled={!currentPaper || !currentPaper.is_valid || exporting}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md transition cursor-pointer ${
               currentPaper && currentPaper.is_valid && !exporting
                 ? 'glass-button-primary text-white cursor-pointer active:scale-95'
                 : 'bg-slate-200/70 text-slate-400 border border-slate-300/40 cursor-not-allowed'
@@ -335,11 +376,22 @@ export default function App() {
             title={
               currentPaper && !currentPaper.is_valid
                 ? currentPaper.validation_errors.join('\n')
-                : 'Export Word Document (.docx)'
+                : 'Export Question Paper (.docx)'
             }
           >
             <Download className="w-4 h-4" />
-            {exporting ? 'Generating...' : 'Export to Word (.docx)'}
+            {exporting ? 'Generating...' : 'Export Paper (.docx)'}
+          </button>
+
+          {/* Export Answer Key Button */}
+          <button
+            onClick={() => handleExportAnswerKey(activePartKey)}
+            disabled={!currentPaper || exporting}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs glass-button-secondary text-slate-700 hover:text-indigo-700 shadow-xs transition cursor-pointer"
+            title="Generate and download Answer Key (.docx)"
+          >
+            <FileCheck className="w-4 h-4 text-emerald-600" />
+            <span>Answer Key</span>
           </button>
         </div>
       </header>
